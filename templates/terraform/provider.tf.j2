@@ -1,0 +1,24 @@
+terraform {
+  backend "s3" {
+    bucket         = "{{ s3_bucket }}"
+    key            = "{{ environment }}/{{ project_name }}.tfstate"
+    region         = "{{ aws_region }}"
+    dynamodb_table = "{{ dynamodb_table }}"
+    encrypt        = true
+  }
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "{{ aws_region }}"
+}
+
+resource "terraform_workspace" "environment" {
+  name = "{{ environment }}"
+}

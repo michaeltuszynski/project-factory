@@ -1,0 +1,11 @@
+data "aws_caller_identity" "current" {}
+
+locals {
+  common_tags = {
+    Project        = var.project_name
+    Environment    = local.environment
+  }
+  test_email       = var.test_email
+  region           = var.region
+  jira_ticket      = var.jira_ticket
+}

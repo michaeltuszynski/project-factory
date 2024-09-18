@@ -1,0 +1,101 @@
+name: Destroy {{ environment }} {{ project_name }}
+
+on:
+  workflow_dispatch:
+
+env:
+  AWS_REGION: {{ aws_region }}
+  TERRAFORM_VERSION: latest
+  WORKING_DIRECTORY: ./infrastructure
+  TF_VAR_environment: {{ environment }}
+  TF_VAR_project_name: {{ project_name }}
+  ROLE_TO_ASSUME: ${{ '{{' }} secrets.{{ 'SANDBOX_' if environment != 'production' else '' }}AWS_ROLE_TO_ASSUME {{ '}}' }}
+  PROJECT_NAME: {{ project_name }}
+
+jobs:
+  destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+    environment: {{ environment }}
+
+    permissions:
+      id-token: write
+      contents: read
+      actions: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.1.6
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          role-to-assume: ${{ '{{' }} env.ROLE_TO_ASSUME {{ '}}' }}
+          aws-region: ${{ '{{' }} env.AWS_REGION {{ '}}' }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3.1.1
+        with:
+          terraform_version: ${{ '{{' }} env.TERRAFORM_VERSION {{ '}}' }}
+
+      - name: Terraform Init
+        working-directory: ${{ '{{' }} env.WORKING_DIRECTORY {{ '}}' }}
+        run: terraform init
+        env:
+          TF_VAR_environment: ${{ '{{' }} env.TF_VAR_environment {{ '}}' }}
+
+      - name: Select Terraform Workspace
+        working-directory: ${{ '{{' }} env.WORKING_DIRECTORY {{ '}}' }}
+        run: terraform workspace select -or-create=true ${{ '{{' }} env.TF_VAR_environment {{ '}}' }}
+        env:
+          TF_VAR_environment: ${{ '{{' }} env.TF_VAR_environment {{ '}}' }}
+
+      - name: Terraform Destroy
+        working-directory: ${{ '{{' }} env.WORKING_DIRECTORY {{ '}}' }}
+        run: terraform destroy -var-file=./vars/${{ '{{' }} env.TF_VAR_environment {{ '}}' }}.tfvars -auto-approve
+        env:
+          TF_VAR_environment: ${{ '{{' }} env.TF_VAR_environment {{ '}}' }}
+
+  cleanup:
+    name: Cancel Cleanup
+    runs-on: ubuntu-latest
+    needs: destroy
+    environment: {{ environment }}
+    if: ${{ '{{' }}  github.event.workflow_run.conclusion == 'cancelled' {{ '}}' }}
+
+    permissions:
+      id-token: write
+      contents: read
+      actions: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.1.6
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          role-to-assume: ${{ '{{' }} env.ROLE_TO_ASSUME {{ '}}' }}
+          aws-region: ${{ '{{' }} env.AWS_REGION {{ '}}' }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3.1.1
+        with:
+          terraform_version: ${{ '{{' }} env.TERRAFORM_VERSION {{ '}}' }}
+
+      - name: Terraform Init
+        working-directory: ${{ '{{' }} env.WORKING_DIRECTORY {{ '}}' }}
+        run: terraform init
+        env:
+          TF_VAR_environment: ${{ '{{' }} env.TF_VAR_environment {{ '}}' }}
+
+      - name: Select Terraform Workspace
+        working-directory: ${{ '{{' }} env.WORKING_DIRECTORY {{ '}}' }}
+        run: terraform workspace select -or-create=true ${{ '{{' }} env.TF_VAR_environment {{ '}}' }}
+        env:
+          TF_VAR_environment: ${{ '{{' }} env.TF_VAR_environment {{ '}}' }}
+
+      - name: Unlock Terraform Remote State becaused workflow was cancelled
+        working-directory: ${{ '{{' }} env.WORKING_DIRECTORY {{ '}}' }}
+        run: |
+          terraform force-unlock -force ${{ '{{' }} env.LOCK_ID {{ '}}' }}

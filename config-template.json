@@ -1,0 +1,11 @@
+{
+  "project_name": "my-infra-project",
+  "working_dir": "/path/to/working/directory",
+  "jira_ticket": "PROJ-123",
+  "aws_sso_profile": "your-sso-profile-name",
+  "aws_region": "us-east-1",
+  "onepassword_vault": "mptsolutions",
+  "onepassword_item": "my-infra-project",
+  "environment": "development",
+  "test_email": "test@example.com"
+}
